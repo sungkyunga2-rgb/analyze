@@ -4,7 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FinAnalyzer — AI 재무제표 분석</title>
-<script src="https://js.tosspayments.com/v2/standard"></script>
+<!-- 포트원 V2 SDK -->
+<script src="https://cdn.portone.io/v2/browser-sdk.esm.js" type="module"></script>
+<script>
+  // 포트원 V2 글로벌 로드 (모듈 방식 지원 안 되는 환경 대비)
+  window.PortOne = null;
+  import("https://cdn.portone.io/v2/browser-sdk.esm.js").then(m => { window.PortOne = m; }).catch(() => {});
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -314,7 +320,9 @@
 <script>
 // ── 설정 ──────────────────────────────────────────────────────
 const API_BASE = "https://YOUR-BACKEND.onrender.com"; // 배포 후 실제 URL로 변경
-const TOSS_CLIENT_KEY = "test_ck_YOUR_TOSS_CLIENT_KEY"; // 토스페이먼츠 클라이언트 키
+// 포트원 설정 (포트원 콘솔 > 결제 연동 > 스토어 아이디 / 채널 키)
+const PORTONE_STORE_ID    = "store-9354e198-29ea-4866-91dc-ddecebe8661e";
+const PORTONE_CHANNEL_KEY = "channel-key-6a2c4072-bda8-4975-8ff2-7fd5d1b9db29";
 
 // ── 상태 ──────────────────────────────────────────────────────
 let token = localStorage.getItem("fa_token") || null;
@@ -504,7 +512,7 @@ function renderResults(d) {
   document.getElementById("results").classList.remove("hidden");
 }
 
-// ── 결제 ──────────────────────────────────────────────────────
+// ── 결제 (포트원 V2) ───────────────────────────────────────────
 const PKGS = {
   basic:    { price: 1000,  credits: 100,  label: "기본 100크레딧" },
   standard: { price: 5000,  credits: 550,  label: "표준 550크레딧" },
@@ -524,50 +532,75 @@ function selectPkg(el, pkgId) {
 async function doPayment() {
   if (!token) { showPage("login"); return; }
   if (!selectedPkg) return;
+
+  // PortOne SDK가 아직 로드 안 됐으면 대기
+  if (!window.PortOne) {
+    try {
+      window.PortOne = await import("https://cdn.portone.io/v2/browser-sdk.esm.js");
+    } catch(e) {
+      toast("결제 모듈 로드 실패. 새로고침 후 다시 시도해주세요."); return;
+    }
+  }
+
   const pkg = PKGS[selectedPkg];
   const orderId = "FA-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7).toUpperCase();
 
-  const tossPayments = TossPayments(TOSS_CLIENT_KEY);
-  const payment = tossPayments.payment({ customerKey: userEmail || "guest" });
-
   try {
-    await payment.requestPayment({
-      method: "CARD",
-      amount: { currency: "KRW", value: pkg.price },
-      orderId,
+    const response = await window.PortOne.requestPayment({
+      storeId: PORTONE_STORE_ID,
+      channelKey: PORTONE_CHANNEL_KEY,
+      paymentId: orderId,           // 포트원 V2는 paymentId 사용
       orderName: `FinAnalyzer ${pkg.label}`,
-      successUrl: window.location.origin + window.location.pathname + "?payment=success",
-      failUrl:    window.location.origin + window.location.pathname + "?payment=fail",
+      totalAmount: pkg.price,
+      currency: "KRW",
+      payMethod: "CARD",            // CARD / VIRTUAL_ACCOUNT / TRANSFER / EASY_PAY
+      customer: { email: userEmail },
+      redirectUrl: window.location.origin + window.location.pathname + "?payment=success",
     });
+
+    if (response.code) {
+      // 오류 또는 사용자 취소
+      if (response.code !== "USER_CANCEL") toast("결제 실패: " + response.message);
+      return;
+    }
+
+    // 결제 성공 → 백엔드 검증 요청
+    await confirmPayment(response.paymentId, selectedPkg, pkg.price);
+
   } catch (e) {
-    if (e.code !== "USER_CANCEL") toast("결제 중 오류: " + e.message);
+    toast("결제 중 오류: " + e.message);
   }
 }
 
-// 결제 성공 콜백 처리
+// 백엔드로 결제 검증 + 크레딧 지급 요청
+async function confirmPayment(paymentId, pkgId, amount) {
+  try {
+    const d = await api("POST", "/payments/confirm", {
+      payment_id: paymentId,   // 포트원은 payment_id 사용
+      package_id: pkgId,
+      amount,
+    });
+    userCredits = d.total_credits;
+    localStorage.setItem("fa_credits", userCredits);
+    updateCreditBadges();
+    toast(`충전 완료! +${d.credits_added}크레딧`);
+    showPage("dashboard");
+  } catch (e) {
+    toast("결제 확인 중 오류: " + e.message);
+  }
+}
+
+// 리다이렉트 방식일 때 콜백 처리 (redirectUrl로 돌아온 경우)
 async function handlePaymentCallback() {
   const params = new URLSearchParams(window.location.search);
   if (params.get("payment") === "success") {
-    const paymentKey = params.get("paymentKey");
-    const orderId    = params.get("orderId");
-    const amount     = parseInt(params.get("amount"));
-    // orderId에서 패키지 추정 (실제로는 서버에서 주문 정보 조회)
+    const paymentId = params.get("paymentId");
+    const amount    = parseInt(params.get("totalAmount") || "0");
     let pkgId = "basic";
     if (amount === 5000) pkgId = "standard";
     if (amount === 10000) pkgId = "premium";
-    try {
-      const d = await api("POST", "/payments/confirm", { package_id: pkgId, payment_key: paymentKey, order_id: orderId, amount });
-      userCredits = d.total_credits;
-      localStorage.setItem("fa_credits", userCredits);
-      updateCreditBadges();
-      toast(`충전 완료! +${d.credits_added}크레딧`);
-    } catch (e) { toast("결제 확인 중 오류: " + e.message); }
+    await confirmPayment(paymentId, pkgId, amount);
     history.replaceState({}, "", window.location.pathname);
-    showPage("dashboard");
-  } else if (params.get("payment") === "fail") {
-    toast("결제가 취소되었습니다.");
-    history.replaceState({}, "", window.location.pathname);
-    showPage("charge");
   }
 }
 
