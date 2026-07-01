@@ -23,8 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-TOSS_SECRET_KEY = os.getenv("TOSS_SECRET_KEY", "test_sk_YOUR_KEY_HERE")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+PORTONE_SECRET_KEY = os.getenv("PORTONE_SECRET_KEY", "")   # 포트원 콘솔 > API 키
+PORTONE_API_BASE   = "https://api.portone.io"
+GEMINI_API_KEY     = os.getenv("GEMINI_API_KEY", "")       # Google AI Studio > API 키
 COST_PER_ANALYSIS = 10  # 분석 1회당 차감 크레딧
 
 CREDIT_PACKAGES = {
@@ -44,9 +45,8 @@ class UserLogin(BaseModel):
     password: str
 
 class PaymentRequest(BaseModel):
+    payment_id: str   # 포트원 V2의 paymentId (프론트에서 전달)
     package_id: str
-    payment_key: str
-    order_id: str
     amount: int
 
 class AnalysisRequest(BaseModel):
@@ -107,7 +107,7 @@ def login(body: UserLogin, db: Session = Depends(get_db)):
 def me(user: models.User = Depends(get_current_user)):
     return {"email": user.email, "credits": user.credits}
 
-# 결제 승인 (토스페이먼츠)
+# 결제 검증 + 크레딧 지급 (포트원 V2)
 @app.post("/payments/confirm")
 async def confirm_payment(
     body: PaymentRequest,
@@ -117,35 +117,48 @@ async def confirm_payment(
     pkg = CREDIT_PACKAGES.get(body.package_id)
     if not pkg:
         raise HTTPException(status_code=400, detail="유효하지 않은 패키지입니다.")
-    if pkg["price"] != body.amount:
-        raise HTTPException(status_code=400, detail="결제 금액이 일치하지 않습니다.")
 
-    # 토스페이먼츠 최종 승인 요청
-    import base64
-    auth = base64.b64encode(f"{TOSS_SECRET_KEY}:".encode()).decode()
+    # ── 중복 결제 방지: 이미 처리된 payment_id인지 확인 ──
+    existing = db.query(models.Payment).filter(models.Payment.order_id == body.payment_id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="이미 처리된 결제입니다.")
+
+    # ── 포트원 V2 API로 결제 내역 조회 (서버사이드 검증) ──
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            "https://api.tosspayments.com/v1/payments/confirm",
-            headers={"Authorization": f"Basic {auth}", "Content-Type": "application/json"},
-            json={"paymentKey": body.payment_key, "orderId": body.order_id, "amount": body.amount}
+        resp = await client.get(
+            f"{PORTONE_API_BASE}/payments/{body.payment_id}",
+            headers={
+                "Authorization": f"PortOne {PORTONE_SECRET_KEY}",
+                "Content-Type": "application/json",
+            }
         )
 
     if resp.status_code != 200:
-        detail = resp.json().get("message", "결제 승인 실패")
-        raise HTTPException(status_code=400, detail=detail)
+        raise HTTPException(status_code=400, detail="포트원 결제 조회 실패")
 
-    # 크레딧 지급
+    payment_data = resp.json()
+
+    # ── 검증: 상태, 금액, 통화 ──
+    if payment_data.get("status") != "PAID":
+        raise HTTPException(status_code=400, detail=f"결제 미완료 상태: {payment_data.get('status')}")
+
+    paid_amount = payment_data.get("amount", {}).get("total", 0)
+    if paid_amount != pkg["price"]:
+        # 금액 불일치 → 포트원에 환불 요청 후 거부 (보안)
+        raise HTTPException(status_code=400, detail=f"결제 금액 불일치 (요청: {pkg['price']}원, 실제: {paid_amount}원)")
+
+    # ── 크레딧 지급 ──
     credits_to_add = pkg["credits"]
     user.credits += credits_to_add
-    payment = models.Payment(
+    payment_record = models.Payment(
         user_id=user.id,
-        order_id=body.order_id,
-        payment_key=body.payment_key,
-        amount=body.amount,
+        order_id=body.payment_id,
+        payment_key=payment_data.get("pgTxId", ""),
+        amount=paid_amount,
         credits=credits_to_add,
         package_id=body.package_id,
     )
-    db.add(payment)
+    db.add(payment_record)
     db.commit()
     db.refresh(user)
 
@@ -173,32 +186,27 @@ operating_income(영업이익), interest_expense(이자비용), net_income(당�
 "operating_income":숫자또는null,"interest_expense":숫자또는null,"net_income":숫자또는null,
 "comment":"인식 관련 메모 1~2문장"}"""
 
+    # Gemini API 호출 (gemini-1.5-flash: 월 1,500회 무료)
+    import json, re
     async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}",
+            headers={"Content-Type": "application/json"},
             json={
-                "model": "claude-sonnet-4-6",
-                "max_tokens": 1000,
-                "messages": [{
-                    "role": "user",
-                    "content": [
-                        {"type": "image", "source": {"type": "base64", "media_type": body.image_mime, "data": body.image_base64}},
-                        {"type": "text", "text": prompt}
+                "contents": [{
+                    "parts": [
+                        {"inline_data": {"mime_type": body.image_mime, "data": body.image_base64}},
+                        {"text": prompt}
                     ]
-                }]
+                }],
+                "generationConfig": {"temperature": 0, "maxOutputTokens": 1000}
             }
         )
 
     if resp.status_code != 200:
-        raise HTTPException(status_code=500, detail="AI 분석 중 오류가 발생했습니다.")
+        raise HTTPException(status_code=500, detail=f"AI 분석 중 오류가 발생했습니다: {resp.text}")
 
-    import json, re
-    text = resp.json()["content"][0]["text"]
+    text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
     clean = re.sub(r"```json|```", "", text).strip()
     data = json.loads(clean)
 
