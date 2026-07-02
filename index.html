@@ -244,7 +244,33 @@
       <button class="btn btn-primary btn-full mt1" id="analyzeBtn" disabled onclick="doAnalyze()">
         이미지를 먼저 업로드하세요
       </button>
-      <div id="creditsInfo" style="text-align:center;font-size:12px;color:var(--text3);margin-top:6px;">분석 1회당 10크레딧 차감</div>
+      <div id="creditsInfo" style="text-align:center;font-size:12px;color:var(--text3);margin-top:6px;">분석 1회당 크레딧 차감</div>
+    </div>
+
+    <!-- 직접 입력 -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:.5rem;">직접 입력</div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem;">재무제표가 없으신가요?</p>
+      <div class="fs-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="field">
+          <label>매출금액 <span style="color:var(--danger);font-size:11px;">필수</span></label>
+          <input type="number" id="m-sales" placeholder="예: 120000000" />
+        </div>
+        <div class="field">
+          <label>부채금액 <span style="color:var(--danger);font-size:11px;">필수</span></label>
+          <input type="number" id="m-debt" placeholder="예: 50000000" />
+        </div>
+        <div class="field">
+          <label>월 이자비용 <span style="color:var(--text3);font-size:11px;">선택</span></label>
+          <input type="number" id="m-interest" placeholder="예: 300000" />
+        </div>
+        <div class="field">
+          <label>월 순수익 <span style="color:var(--text3);font-size:11px;">선택</span></label>
+          <input type="number" id="m-profit" placeholder="예: 5000000" />
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text3);margin-top:2px;margin-bottom:1rem;">전부 입력해주실수록 정확하게 분석이 가능합니다.</p>
+      <button class="btn btn-primary btn-full" onclick="doManualAnalyze()">입력 정보로 분석하기</button>
     </div>
 
     <!-- 상태 바 -->
@@ -273,7 +299,7 @@
   </div>
 </div>
 
-<!-- ───────────────────────── 크레딧 충전 ───────────────────────── -->
+<!-- ───────────────────────── 결제하기 ───────────────────────── -->
 <div id="page-charge" class="page">
   <header>
     <a class="logo" href="#" onclick="showPage('dashboard')">Fin<span>Analyzer</span></a>
@@ -283,34 +309,138 @@
     </div>
   </header>
   <div class="main" style="max-width:560px;">
-    <h2 style="font-size:20px;font-weight:600;margin-bottom:1.5rem;letter-spacing:-0.02em;">크레딧 충전</h2>
+    <h2 style="font-size:20px;font-weight:600;margin-bottom:1.5rem;letter-spacing:-0.02em;">결제하기</h2>
 
     <div class="card">
-      <div class="card-title">충전 패키지 선택</div>
+      <div class="card-title">이용권 선택</div>
       <div class="packages" id="packages">
         <div class="pkg-card" data-pkg="basic" onclick="selectPkg(this,'basic')">
           <div class="pkg-name">기본</div>
           <div class="pkg-price">1,000원</div>
-          <div class="pkg-credits">100크레딧 · 분석 10회</div>
+          <div class="pkg-credits">분석 1회</div>
         </div>
-        <div class="pkg-card recommended" data-pkg="standard" onclick="selectPkg(this,'standard')">
-          <div class="pkg-badge">추천</div>
-          <div class="pkg-name">표준</div>
-          <div class="pkg-price">5,000원</div>
-          <div class="pkg-credits">550크레딧 · 분석 55회</div>
-        </div>
-        <div class="pkg-card" data-pkg="premium" onclick="selectPkg(this,'premium')">
-          <div class="pkg-name">프리미엄</div>
+        <div class="pkg-card" data-pkg="standard" onclick="selectPkg(this,'standard')">
+          <div class="pkg-name">스탠다드</div>
           <div class="pkg-price">10,000원</div>
-          <div class="pkg-credits">1,200크레딧 · 분석 120회</div>
+          <div class="pkg-credits">분석 11회 <span style="color:var(--accent);font-size:11px;font-weight:600;">10% 할인</span></div>
+        </div>
+        <div class="pkg-card recommended" data-pkg="premium" onclick="selectPkg(this,'premium')">
+          <div class="pkg-badge">추천</div>
+          <div class="pkg-name">프리미엄</div>
+          <div class="pkg-price">30,000원</div>
+          <div class="pkg-credits">분석 36회 <span style="color:var(--accent);font-size:11px;font-weight:600;">20% 할인</span></div>
+        </div>
+        <div class="pkg-card" data-pkg="vip" onclick="selectPkg(this,'vip')">
+          <div class="pkg-name">VIP</div>
+          <div class="pkg-price">50,000원</div>
+          <div class="pkg-credits">분석 65회 <span style="color:var(--accent);font-size:11px;font-weight:600;">30% 할인</span></div>
         </div>
       </div>
     </div>
 
     <button class="btn btn-primary btn-full" id="payBtn" disabled onclick="doPayment()">
-      패키지를 선택하세요
+      이용권을 선택하세요
     </button>
-    <p class="note text-center mt1">토스페이먼츠 안전 결제 · 카드/계좌이체/간편결제 지원</p>
+    <p class="note text-center mt1">포트원 안전 결제 · 카드/계좌이체/간편결제 지원</p>
+    <p class="note text-center" style="margin-top:8px;color:var(--text2);">서비스 제공기간 : 분석된 재무제표는 결제 이후 <strong>3개월</strong>동안 보관됩니다. 꼭 다운로드해서 보관해주세요.</p>
+  </div>
+</div>
+
+<!-- ───────────────────────── 이용약관 ───────────────────────── -->
+<div id="page-terms" class="page">
+  <header>
+    <a class="logo" href="#" onclick="showPage('landing')">Fin<span>Analyzer</span></a>
+  </header>
+  <div class="main" style="max-width:720px;">
+    <h2 style="font-size:20px;font-weight:600;margin-bottom:1.5rem;">이용약관</h2>
+    <div class="card" style="line-height:1.9;font-size:14px;color:var(--text2);">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:1rem;">씨앤지파트너스 서비스 이용약관</h3>
+      <p>본 약관은 씨앤지파트너스(이하 '회사')가 제공하는 AI 재무제표 분석 서비스(이하 '서비스')의 이용에 관한 조건 및 절차, 회사와 이용자의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+      <br/>
+      <p><strong>제1조 (서비스 이용)</strong><br/>서비스는 재무제표 이미지를 AI로 분석하여 주요 재무지표를 제공합니다. 분석 결과는 참고용이며 공인 회계사의 검토를 대체하지 않습니다.</p>
+      <br/>
+      <p><strong>제2조 (결제 및 환불)</strong><br/>이용권 결제 후 서비스를 이용하지 않은 경우 7일 이내 환불을 요청할 수 있습니다. 분석 서비스를 1회 이상 이용한 경우 환불이 제한될 수 있습니다.</p>
+      <br/>
+      <p><strong>제3조 (서비스 제공기간)</strong><br/>분석된 재무제표 결과는 결제일로부터 3개월간 보관됩니다. 보관 기간 내 다운로드하여 보관하시기 바랍니다.</p>
+      <br/>
+      <p><strong>제4조 (면책)</strong><br/>회사는 AI 분석 결과의 정확성을 보증하지 않으며, 분석 결과를 기반으로 한 의사결정에 따른 손실에 대해 책임을 지지 않습니다.</p>
+      <br/>
+      <p><strong>제5조 (준거법)</strong><br/>본 약관은 대한민국 법률에 따라 해석되며, 분쟁 발생 시 회사 소재지를 관할하는 법원을 전속 관할로 합니다.</p>
+    </div>
+    <button class="btn mt1" onclick="history.back()">← 돌아가기</button>
+  </div>
+</div>
+
+<!-- ───────────────────────── 개인정보처리방침 ───────────────────────── -->
+<div id="page-privacy" class="page">
+  <header>
+    <a class="logo" href="#" onclick="showPage('landing')">Fin<span>Analyzer</span></a>
+  </header>
+  <div class="main" style="max-width:720px;">
+    <h2 style="font-size:20px;font-weight:600;margin-bottom:1.5rem;">개인정보 처리방침</h2>
+    <div class="card" style="line-height:1.9;font-size:14px;color:var(--text2);">
+      <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:1rem;">씨앤지파트너스회사 개인정보 처리방침</h3>
+
+      <p><strong>1. 개인정보 수집 및 활용 동의</strong></p>
+      <p>씨앤지파트너스 회사(이하 '회사'라 함)은 개인정보 처리방침을 통하여 정보주체들이 제공하는 개인정보가 어떠한 용도와 방식으로 이용되고 있으며 개인정보보호를 위해 어떠한 조치가 취해지고 있는지 알려드립니다. 회사는 개인정보 처리방침을 홈페이지 첫 화면에 공개함으로써 정보주체들이 언제나 용이하게 보실 수 있도록 조치하고 있습니다.</p>
+      <p>회사의 개인정보 처리방침은 정부의 법률 및 지침 변경이나 회사의 내부 방침 변경 등으로 인하여 수시로 변경될 수 있고, 이에 따른 개인정보 처리방침의 지속적인 개선을 위하여 필요한 절차를 정하고 있습니다.</p>
+      <br/>
+      <p><strong>2. 개인정보 수집에 대한 동의</strong></p>
+      <p>회사는 정보주체들이 회사의 개인정보 처리방침 또는 개인정보 수집동의, 이용약관의 내용에 대하여 '동의' 버튼을 필수 선택하여야만 '온라인 상담 접수'가 가능하며, 이와 같은 이유로 상담 접수 시 개인정보 수집에 대해 동의한 것으로 간주합니다.</p>
+      <br/>
+      <p><strong>3. 개인정보의 수집목적 및 이용목적</strong></p>
+      <p>회사는 사이트의 효과적 운영을 위해 일반 정보주체(컨설팅 신청자)를 위한 서비스로 운영되고 있습니다. 이에 따라 상담을 위한 기본적인 질문인 회사명, 성명, 연락처, 전화번호, 상담분야, 컨설팅을 위한 회사의 기본재무정보 등을 받고 있으며 상담 목적 이외에 용도로 사용하지 않고 있습니다.</p>
+      <br/>
+      <p><strong>4. 수집하는 개인정보 항목 및 수집방법</strong></p>
+      <p>"개인정보"라 함은 생존하는 개인에 관한 정보로서 당해 정보에 포함되어 있는 성명, 전화번호 등의 사항에 의하여 당해 개인을 식별할 수 있는 정보를 말합니다.</p>
+      <p>각 수집정보 별 수집목적은 다음과 같습니다.<br/>
+      ① 모든 항목 기본 사항 : 재무제표 분석 및 서비스 제공<br/>
+      ② 성명, 회사명 : 서비스이용에 따른 민원사항의 처리를 위한 본인식별<br/>
+      ③ 전화번호 : 고지사항 전달, 본인 의사확인, 불만처리 등 의사소통 경로의 확보<br/>
+      ④ 회사 기본 재무정보 : 컨설팅을 위한 회사 기본 재무정보 파악</p>
+      <br/>
+      <p><strong>5. 개인정보의 보유 및 이용기간</strong></p>
+      <p>정보주체 및 회원으로써 회사에 제공하는 서비스를 이용하는 동안 회사는 회원 및 정보주체들의 개인정보를 1년간 보존합니다. 본 동의는 언제든지 철회할 수 있으며, 개인정보의 이용과 관련하여 고객님께 불편을 드린 경우 언제라도 연락 주시면 신속하게 조치하겠습니다.</p>
+      <br/>
+      <p><strong>6. 개인정보의 파기절차 및 방법</strong></p>
+      <p>회사는 귀중한 정보주체 및 회원의 개인정보를 안전하게 처리하며, 유출의 방지를 위하여 다음과 같은 방법을 통하여 개인정보를 파기합니다. 전자적 파일 형태로 저장된 개인정보는 기록을 재생할 수 없는 기술적 방법을 사용하여 삭제합니다.</p>
+      <br/>
+      <p><strong>7. 고객 의견수렴 및 불만처리</strong></p>
+      <p>회사는 개인정보보호와 관련하여 정보주체 및 회원의 의견과 불만을 제기할 수 있는 창구를 개설하고 있습니다. 개인정보와 관련한 불만이 있으신 분은 회사의 개인정보 관리책임자에게 의견을 주시면 접수 즉시 조치하여 처리결과를 통보해 드립니다.</p>
+      <br/>
+      <p><strong>8. 개인정보 관리책임자</strong></p>
+      <p>회사는 개인정보에 대한 의견수렴 및 불만처리의 정책을 담당하는 개인정보정책 담당 관리책임자를 지정하고 있습니다. 본 정책에 대한 불만사항이 있으시다면 아래 연락처로 문의 하시면 친절히 처리하여 드리겠습니다.<br/>
+      대표전화 : 1555-3830 · 이메일 : cngpartners123@gmail.com</p>
+    </div>
+    <button class="btn mt1" onclick="history.back()">← 돌아가기</button>
+  </div>
+</div>
+
+<!-- ───────────────────────── 푸터 ───────────────────────── -->
+<style>
+  .site-footer { background: var(--surface); border-top: 1px solid var(--border); padding: 2rem 1.5rem; margin-top: 2rem; }
+  .footer-inner { max-width: 760px; margin: 0 auto; }
+  .footer-company { font-size: 13px; color: var(--text2); line-height: 2; }
+  .footer-company strong { color: var(--text); font-size: 14px; }
+  .footer-links { display: flex; gap: 16px; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .footer-links a { font-size: 12px; color: var(--text3); text-decoration: none; }
+  .footer-links a:hover { color: var(--text); }
+  .footer-copy { font-size: 12px; color: var(--text3); margin-top: 8px; }
+</style>
+
+<div class="site-footer" id="siteFooter">
+  <div class="footer-inner">
+    <div class="footer-company">
+      <strong>씨앤지파트너스</strong><br/>
+      대표자 : 정성경 &nbsp;|&nbsp; 사업자등록번호 : 743-42-01047<br/>
+      사업장 주소 : 경기도 고양시 향동동 469 DMC스타비즈4st, 1316호<br/>
+      대표전화 : 1555-3830 &nbsp;|&nbsp; 이메일 : cngpartners123@gmail.com
+    </div>
+    <div class="footer-links">
+      <a href="#" onclick="showPage('terms')">이용약관</a>
+      <a href="#" onclick="showPage('privacy')">개인정보처리방침</a>
+    </div>
+    <p class="footer-copy">© 2026 씨앤지파트너스. All rights reserved.</p>
   </div>
 </div>
 
@@ -319,7 +449,7 @@
 
 <script>
 // ── 설정 ──────────────────────────────────────────────────────
-const API_BASE = "https://analyze-1-250m.onrender.com"; // 배포 후 실제 URL로 변경
+const API_BASE = "https://YOUR-BACKEND.onrender.com"; // 배포 후 실제 URL로 변경
 // 포트원 설정 (포트원 콘솔 > 결제 연동 > 스토어 아이디 / 채널 키)
 const PORTONE_STORE_ID    = "store-9354e198-29ea-4866-91dc-ddecebe8661e";
 const PORTONE_CHANNEL_KEY = "channel-key-6a2c4072-bda8-4975-8ff2-7fd5d1b9db29";
@@ -467,6 +597,46 @@ async function doAnalyze() {
   }
 }
 
+// ── 직접 입력 분석 ─────────────────────────────────────────────
+function doManualAnalyze() {
+  if (!token) { showPage("login"); return; }
+
+  const sales    = parseFloat(document.getElementById("m-sales").value);
+  const debt     = parseFloat(document.getElementById("m-debt").value);
+  const interest = parseFloat(document.getElementById("m-interest").value) || null;
+  const profit   = parseFloat(document.getElementById("m-profit").value) || null;
+
+  if (isNaN(sales) || isNaN(debt)) {
+    toast("매출금액과 부채금액은 필수 입력 항목입니다.");
+    return;
+  }
+
+  // 직접 입력값으로 재무 데이터 구성 (연간 환산)
+  const annualInterest = interest ? interest * 12 : null;
+  const annualProfit   = profit   ? profit * 12   : null;
+
+  // 부채비율 계산을 위해 자본총계 추정 (매출 - 부채)
+  const estimatedEquity = sales - debt;
+
+  const d = {
+    current_assets: sales,
+    noncurrent_assets: null,
+    current_liabilities: debt,
+    noncurrent_liabilities: null,
+    capital_stock: null,
+    total_equity: estimatedEquity > 0 ? estimatedEquity : null,
+    operating_income: annualProfit,
+    interest_expense: annualInterest,
+    net_income: annualProfit,
+    comment: "직접 입력 데이터 기반 추정 분석입니다. 실제 재무제표와 차이가 있을 수 있습니다."
+  };
+
+  document.getElementById("results").classList.remove("hidden");
+  renderResults(d);
+  document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+  toast("입력 정보로 분석 완료");
+}
+
 function renderResults(d) {
   const labels = {
     current_assets: "유동자산", noncurrent_assets: "비유동자산",
@@ -514,9 +684,10 @@ function renderResults(d) {
 
 // ── 결제 (포트원 V2) ───────────────────────────────────────────
 const PKGS = {
-  basic:    { price: 1000,  credits: 100,  label: "기본 100크레딧" },
-  standard: { price: 5000,  credits: 550,  label: "표준 550크레딧" },
-  premium:  { price: 10000, credits: 1200, label: "프리미엄 1200크레딧" },
+  basic:    { price: 1000,  credits: 10,  label: "기본 1회" },
+  standard: { price: 10000, credits: 110, label: "스탠다드 11회" },
+  premium:  { price: 30000, credits: 360, label: "프리미엄 36회" },
+  vip:      { price: 50000, credits: 650, label: "VIP 65회" },
 };
 
 function selectPkg(el, pkgId) {
@@ -526,7 +697,7 @@ function selectPkg(el, pkgId) {
   const pkg = PKGS[pkgId];
   const btn = document.getElementById("payBtn");
   btn.disabled = false;
-  btn.textContent = `${pkg.label} — ${pkg.price.toLocaleString()}원 결제하기`;
+  btn.textContent = `${pkg.label} — ${pkg.price.toLocaleString()}원 결제하기 →`;
 }
 
 async function doPayment() {
