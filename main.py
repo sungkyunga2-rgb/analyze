@@ -83,7 +83,7 @@ def register(body: UserCreate, db: Session = Depends(get_db)):
     import hashlib
     pw_hash = hashlib.sha256(body.password.encode()).hexdigest()
     token = str(uuid.uuid4())
-    user = models.User(email=body.email, password_hash=pw_hash, token=token, credits=0)
+    user = models.User(email=body.email, password_hash=pw_hash, token=token, credits=1000)
     db.add(user)
     db.commit()
     db.refresh(user)
