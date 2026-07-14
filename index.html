@@ -758,6 +758,7 @@ function doManualAnalyze() {
 
   const d = {
     company_name: companyName,
+    revenue: sales,
     current_assets: baseAssets,
     noncurrent_assets: null,
     current_liabilities: debt,
@@ -784,9 +785,12 @@ function renderResults(d) {
   const ta  = (d.current_assets || 0) + (d.noncurrent_assets || 0);
   const dr  = d.total_equity ? tl / d.total_equity * 100 : null;
   const ice = (d.interest_expense > 0 && d.operating_income !== null) ? d.operating_income / d.interest_expense : null;
+  const loanRatio = (d.revenue && d.revenue > 0) ? tl / d.revenue * 100 : null;
 
   const drClass  = dr  === null ? "warn" : dr  > 400 ? "danger" : dr  > 200 ? "warn" : "safe";
   const iceClass = ice === null ? "warn" : ice < 1   ? "danger" : ice <  2  ? "warn" : "safe";
+  const loanClass = loanRatio === null ? "warn" : loanRatio >= 30 ? "danger" : loanRatio >= 15 ? "warn" : "safe";
+  const loanLabel = loanRatio === null ? "미산정" : loanClass === "safe" ? "적정" : loanClass === "warn" ? "주의" : "과다";
 
   const clsColor = { safe: "#0F6E56", warn: "#B8860B", danger: "#A32D2D" };
   const clsBg    = { safe: "#E1F5EE", warn: "#FEF6D8", danger: "#FCEBEB" };
@@ -875,6 +879,13 @@ function renderResults(d) {
   if (defClass === "danger") comments.push(`📌 당기순손실이 발생했습니다. 비용 구조 개선 및 수익성 제고 방안 마련이 시급합니다.`);
   else if (defClass === "safe" && d.net_income > 0) comments.push(`📌 당기순이익이 발생하여 수익성은 양호한 상태입니다.`);
 
+  // 매출대비 대출비율 코멘트
+  if (loanRatio !== null) {
+    if (loanRatio >= 30) comments.push(`📌 매출 대비 대출 비율이 ${loanRatio.toFixed(1)}%로 과다한 수준입니다. 매출 규모 대비 대출 의존도가 높아 상환 부담이 클 수 있습니다.`);
+    else if (loanRatio >= 15) comments.push(`📌 매출 대비 대출 비율이 ${loanRatio.toFixed(1)}%로 주의가 필요합니다. 매출 성장과 함께 대출 규모 관리가 필요합니다.`);
+    else comments.push(`📌 매출 대비 대출 비율이 ${loanRatio.toFixed(1)}%로 적정 수준입니다. 매출 대비 대출 부담이 낮은 편입니다.`);
+  }
+
   // ── 사업 안정성 종합점수 계산 ──────────────────────────────
   let scoreTotal = 0, scoreCnt = 0;
   const scoreItems = [];
@@ -953,6 +964,15 @@ function renderResults(d) {
         <div style="font-size:16px;font-weight:700;color:${clsColor[defClass]};">${clsIcon[defClass]} ${defText}</div>
       </div>
     </div>
+    <div style="background:${clsBg[loanClass]};border-radius:12px;padding:1rem;border:1px solid ${clsColor[loanClass]}33;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:12px;color:#6b6a65;margin-bottom:4px;font-weight:500;">💳 매출 대비 대출 비율</div>
+          <div style="font-size:16px;font-weight:700;color:${clsColor[loanClass]};">${clsIcon[loanClass]} ${loanRatio !== null ? loanRatio.toFixed(1) + "%" : "N/A"} (${loanLabel})</div>
+        </div>
+        <div style="font-size:11px;color:#9b9a95;text-align:right;">0~15% 적정<br/>15~30% 주의<br/>30%↑ 과다</div>
+      </div>
+    </div>
     <div style="background:#f9f9f8;border-radius:12px;padding:1rem;border:1px solid #e5e4e0;margin-bottom:10px;">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
         <div>
@@ -979,6 +999,7 @@ function renderResults(d) {
   const annualInterest  = d.interest_expense;
 
   const labels = {
+    revenue:                ["매출액",      "💰"],
     current_assets:         ["유동자산",    "💵"],
     noncurrent_assets:      ["비유동자산",  "🏗️"],
     current_liabilities:    ["유동부채",    "📋"],
@@ -1298,13 +1319,13 @@ function downloadResult() {
   // ── 재무수치 테이블 ───────────────────────────────────
   const items = extractedEl.querySelectorAll('div[style*="border-radius:10px"]');
   const cats = {
-    '유동자산':'재무상태표','비유동자산':'재무상태표','유동부채':'재무상태표',
+    '매출액':'손익계산서','유동자산':'재무상태표','비유동자산':'재무상태표','유동부채':'재무상태표',
     '비유동부채':'재무상태표','자본금':'재무상태표','자본총계':'재무상태표',
     '영업이익':'손익계산서','이자비용 (연)':'손익계산서','이자비용 (월)':'손익계산서','당기순이익':'손익계산서'
   };
   let rows = '';
   items.forEach(item => {
-    const label = item.querySelector('div:first-child')?.innerText?.replace(/[💵🏗️📋🏦💼📦📈💸🎯]/g,'').trim() || '';
+    const label = item.querySelector('div:first-child')?.innerText?.replace(/[💰💵🏗️📋🏦💼📦📈💸🎯]/g,'').trim() || '';
     const value = item.querySelector('div:last-child')?.innerText?.trim() || '';
     if (!label || label === '이자비용') return;
     const isEmpty = value === '미인식';
