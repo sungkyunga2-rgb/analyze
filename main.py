@@ -13,6 +13,29 @@ from sqlalchemy.orm import Session
 
 models.Base.metadata.create_all(bind=engine)
 
+# ── 자동 마이그레이션: 기존 테이블에 없는 컬럼 자동 추가 ──
+def run_auto_migration():
+    from sqlalchemy import text, inspect
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    existing_columns = {col["name"] for col in inspector.get_columns("users")}
+    required_columns = {
+        "company_name": "VARCHAR DEFAULT ''",
+        "rep_name": "VARCHAR DEFAULT ''",
+        "phone": "VARCHAR DEFAULT ''",
+    }
+    with engine.connect() as conn:
+        for col_name, col_def in required_columns.items():
+            if col_name not in existing_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}"))
+                    conn.commit()
+                except Exception as e:
+                    print(f"마이그레이션 오류 ({col_name}): {e}")
+
+run_auto_migration()
+
 app = FastAPI(title="FinAnalyzer API")
 
 app.add_middleware(
