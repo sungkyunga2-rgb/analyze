@@ -274,6 +274,14 @@
           <input type="text" id="m-company" placeholder="예: (주)씨앤지파트너스" />
         </div>
         <div class="field">
+          <label>대표자명 <span style="color:var(--text3);font-size:11px;">선택</span></label>
+          <input type="text" id="m-rep" placeholder="예: 홍길동" />
+        </div>
+        <div class="field">
+          <label>사업자등록번호 <span style="color:var(--text3);font-size:11px;">선택</span></label>
+          <input type="text" id="m-biz" placeholder="예: 123-45-67890" />
+        </div>
+        <div class="field">
           <label>매출금액 <span style="color:var(--danger);font-size:11px;">필수</span></label>
           <input type="number" id="m-sales" placeholder="예: 120000000" />
         </div>
@@ -556,6 +564,7 @@ function showPage(name) {
   if (name === "dashboard") {
     const mCompany = document.getElementById("m-company");
     if (mCompany && userCompanyName && !mCompany.value) mCompany.value = userCompanyName;
+    prefillManualFields();
   }
   if (name === "myinfo") {
     document.getElementById("myinfo-pw").value = "";
@@ -801,10 +810,18 @@ async function doAnalyze() {
 }
 
 // ── 직접 입력 분석 ─────────────────────────────────────────────
+function prefillManualFields() {
+  const repEl = document.getElementById("m-rep");
+  const bizEl = document.getElementById("m-biz");
+  if (repEl && !repEl.value) repEl.value = userRepName || "";
+  if (bizEl && !bizEl.value) bizEl.value = userBizNumber || "";
+}
 function doManualAnalyze() {
   if (!token) { showPage("login"); return; }
 
   const companyName = document.getElementById("m-company").value.trim();
+  const repName  = document.getElementById("m-rep").value.trim();
+  const bizNum   = document.getElementById("m-biz").value.trim();
   const sales    = parseFloat(document.getElementById("m-sales").value);
   const debt     = parseFloat(document.getElementById("m-debt").value);
   const assets   = parseFloat(document.getElementById("m-assets").value) || null;
@@ -824,6 +841,8 @@ function doManualAnalyze() {
 
   const d = {
     company_name: companyName,
+    rep_name: repName || null,
+    business_number: bizNum || null,
     revenue: sales,
     current_assets: baseAssets,
     noncurrent_assets: null,
@@ -845,8 +864,8 @@ function doManualAnalyze() {
 
 function renderResults(d) {
   window.lastCompanyName = d.company_name || "";
-  window.lastRepName = userRepName || "";
-  window.lastBizNumber = userBizNumber || "";
+  window.lastRepName = d.rep_name || userRepName || "";
+  window.lastBizNumber = d.business_number || userBizNumber || "";
   document.getElementById("companyNameHeader").textContent = d.company_name ? `🏢 ${d.company_name}` : "";
 
   const tl  = (d.current_liabilities || 0) + (d.noncurrent_liabilities || 0);
