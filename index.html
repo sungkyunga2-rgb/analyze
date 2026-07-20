@@ -1222,24 +1222,25 @@ function downloadResult() {
   .rf .dis { margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,.15); font-size:9px; opacity:.6; }
 
   /* 표지 페이지 */
-  .cover { position:relative; page-break-after:always; break-after:always; min-height: 277mm; }
-  .cover-brandbar { display:flex; justify-content:space-between; align-items:center; padding:14mm 16mm 12mm; background:linear-gradient(90deg,#0d3b7c 0%,#185fa5 60%,#2e80d8 100%); }
+  .cover { position:relative; page-break-after:always; break-after:always; height: 277mm; display:flex; flex-direction:column; overflow:hidden; }
+  .cover-brandbar { display:flex; justify-content:space-between; align-items:center; padding:14mm 16mm 12mm; background:linear-gradient(90deg,#0d3b7c 0%,#185fa5 60%,#2e80d8 100%); flex-shrink:0; }
   .cover-brand-mark { display:flex; align-items:center; gap:10px; }
   .cover-brand-logo { width:34px; height:34px; border-radius:8px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); display:flex; align-items:center; justify-content:center; font-weight:900; font-size:13px; letter-spacing:-.03em; color:#fff; }
   .cover-brand-name { font-size:12px; font-weight:700; letter-spacing:.06em; color:#fff; }
   .cover-brand-name span { display:block; font-size:9px; font-weight:400; letter-spacing:.04em; opacity:.75; margin-top:1px; }
   .cover-doc-badge { font-size:10px; font-weight:600; letter-spacing:.04em; padding:5px 12px; border-radius:20px; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff; }
-  .cover-titleblock { padding:26mm 16mm 0; }
+  .cover-mid { flex:1; display:flex; flex-direction:column; justify-content:center; gap:14mm; padding:0 16mm; }
+  .cover-titleblock { padding:0; }
   .cover-eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; color:#185fa5; margin-bottom:14px; }
   .cover-maintitle { font-size:36px; font-weight:900; letter-spacing:-.03em; line-height:1.28; color:#0d3b7c; }
   .cover-subtitle { margin-top:16px; font-size:12px; color:#6b7a8d; }
-  .cover-signature { display:block; margin:20mm auto 0; width:100%; max-width:170mm; height:auto; }
-  .cover-infopanel { margin:14mm 16mm 0; background:#f4f8fc; border:1px solid #d7e4f2; border-left:4px solid #185fa5; border-radius:14px; padding:8mm 10mm; }
+  .cover-signature { display:block; margin:0 auto; width:100%; max-width:170mm; height:auto; }
+  .cover-infopanel { margin:0; background:#f4f8fc; border:1px solid #d7e4f2; border-left:4px solid #185fa5; border-radius:14px; padding:8mm 10mm; }
   .cover-info-target { font-size:19px; font-weight:700; letter-spacing:-.01em; padding-bottom:7mm; margin-bottom:7mm; border-bottom:1px solid #d7e4f2; color:#0d3b7c; }
   .cover-info-grid { display:grid; grid-template-columns:1fr 1fr; row-gap:6mm; column-gap:8mm; }
   .cover-info-item .cl { font-size:10px; color:#7a8ca3; font-weight:500; margin-bottom:3px; letter-spacing:.02em; }
   .cover-info-item .cv { font-size:14px; font-weight:700; color:#1a2332; }
-  .cover-footer { margin:16mm 16mm 0; display:flex; justify-content:space-between; align-items:flex-end; }
+  .cover-footer { margin:0 16mm 12mm; padding-top:8mm; border-top:1px solid #e5ecf5; display:flex; justify-content:space-between; align-items:flex-end; flex-shrink:0; }
   .cover-footer-brand { font-size:10px; font-weight:700; letter-spacing:.05em; color:#0d3b7c; }
   .cover-footer-tagline { font-size:9px; color:#9aa7b8; margin-top:2px; }
   .cover-footer-note { font-size:9px; color:#9aa7b8; text-align:right; }
@@ -1262,6 +1263,7 @@ function downloadResult() {
     </div>
     <div class="cover-doc-badge">AI 재무분석 리포트</div>
   </div>
+  <div class="cover-mid">
   <div class="cover-titleblock">
     <div class="cover-eyebrow">FINANCIAL HEALTH DIAGNOSTIC REPORT</div>
     <div class="cover-maintitle">재무제표<br>진단 결과 보고서</div>
@@ -1300,6 +1302,7 @@ function downloadResult() {
       <div class="cover-info-item"><div class="cl">사업자번호</div><div class="cv">${window.lastBizNumber || "-"}</div></div>
       <div class="cover-info-item"><div class="cl">평가완료일</div><div class="cv">${dateStr}</div></div>
     </div>
+  </div>
   </div>
   <div class="cover-footer">
     <div>
