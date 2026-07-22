@@ -96,6 +96,17 @@
   .modal-close:hover { color: var(--text1); }
   .modal-desc { font-size: 13px; color: var(--text2); margin-bottom: 1.25rem; }
 
+  /* 다중 이미지 썸네일 */
+  .img-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; margin-top: 10px; }
+  .img-thumb { position: relative; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; aspect-ratio: 3/4; background: var(--surface); }
+  .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .img-thumb .pdf-badge { display:flex; align-items:center; justify-content:center; flex-direction:column; height:100%; font-size:22px; color:var(--text3); }
+  .img-thumb .pdf-badge span { font-size:9px; margin-top:4px; padding:0 4px; text-align:center; word-break:break-all; }
+  .img-thumb .thumb-remove { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: rgba(20,24,32,0.65); color: #fff; border: none; font-size: 11px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .img-thumb .thumb-remove:hover { background: var(--danger); }
+  .img-thumb-add { display:flex; align-items:center; justify-content:center; border: 1.5px dashed var(--border-strong); border-radius: 10px; aspect-ratio: 3/4; cursor: pointer; color: var(--text3); font-size: 22px; background: var(--surface); }
+  .img-thumb-add:hover { border-color: var(--accent); color: var(--accent); }
+
   /* ── 드롭존 ── */
   .drop-zone { border: 2px dashed var(--border-strong); border-radius: 14px; padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; background: var(--surface2); }
   .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-bg); }
@@ -265,9 +276,10 @@
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="dz-icon">📄</div>
         <div class="dz-text">이미지를 클릭하거나 드래그해서 업로드</div>
-        <div class="dz-hint">JPG, PNG, PDF — 재무상태표 또는 손익계산서</div>
+        <div class="dz-hint">JPG, PNG, PDF — 최대 10장까지 첨부 가능</div>
       </div>
-      <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none" />
+      <div id="imgThumbs" class="img-thumbs hidden"></div>
+      <input type="file" id="fileInput" accept="image/*,application/pdf" multiple style="display:none" />
       <button class="btn btn-primary btn-full mt1" id="analyzeBtn" disabled onclick="doAnalyze()">
         이미지를 먼저 업로드하세요
       </button>
@@ -586,8 +598,7 @@ let userCredits = parseInt(localStorage.getItem("fa_credits") || "0");
 let userCompanyName = localStorage.getItem("fa_company") || "";
 let userRepName = localStorage.getItem("fa_rep") || "";
 let userBizNumber = localStorage.getItem("fa_biz") || "";
-let imageBase64 = null;
-let imageMime = "image/jpeg";
+let uploadedImages = []; // {data, mime, name, isPdf} — 최대 10장
 let selectedPkg = null;
 
 // ── 유틸 ──────────────────────────────────────────────────────
@@ -770,57 +781,87 @@ async function saveBiz() {
 }
 const dropZone = document.getElementById("dropZone");
 const fileInput = document.getElementById("fileInput");
+const MAX_IMAGES = 10;
 dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
 dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
-dropZone.addEventListener("drop", e => { e.preventDefault(); dropZone.classList.remove("dragover"); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener("change", e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+dropZone.addEventListener("drop", e => { e.preventDefault(); dropZone.classList.remove("dragover"); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+fileInput.addEventListener("change", e => { if (e.target.files.length) addFiles(e.target.files); fileInput.value = ""; });
 
-function handleFile(file) {
-  if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
-    toast("JPG, PNG, PDF 파일만 업로드 가능합니다."); return;
-  }
+function addFiles(fileList) {
+  const files = Array.from(fileList);
+  const remainingSlots = MAX_IMAGES - uploadedImages.length;
+  if (remainingSlots <= 0) { toast(`이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있습니다.`); return; }
 
-  if (file.type === "application/pdf") {
-    // PDF는 base64로 변환 후 Gemini에 전달
-    imageMime = "application/pdf";
+  const validFiles = files.filter(f => f.type.startsWith("image/") || f.type === "application/pdf");
+  if (validFiles.length < files.length) toast("JPG, PNG, PDF 파일만 업로드 가능합니다.");
+
+  const toProcess = validFiles.slice(0, remainingSlots);
+  if (validFiles.length > toProcess.length) toast(`최대 ${MAX_IMAGES}장까지만 첨부 가능해 ${toProcess.length}장만 추가되었습니다.`);
+
+  toProcess.forEach(file => {
     const reader = new FileReader();
     reader.onload = ev => {
-      imageBase64 = ev.target.result.split(",")[1];
-      dropZone.classList.add("has-img");
-      dropZone.innerHTML = `
-        <div style="padding:2rem;text-align:center;">
-          <div style="font-size:40px;margin-bottom:8px;">📑</div>
-          <div style="font-size:14px;font-weight:500;color:var(--text);">${file.name}</div>
-          <div style="font-size:12px;color:var(--text2);margin-top:4px;">PDF 파일 첨부됨 · ${(file.size/1024).toFixed(0)}KB</div>
-          <button onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="margin-top:12px;padding:6px 14px;font-size:12px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);cursor:pointer;">다시 선택</button>
-        </div>`;
-      const btn = document.getElementById("analyzeBtn");
-      btn.disabled = false;
-      btn.textContent = "분석하기";
-      document.getElementById("results").classList.add("hidden");
+      uploadedImages.push({
+        data: ev.target.result.split(",")[1],
+        mime: file.type || "image/jpeg",
+        name: file.name,
+        isPdf: file.type === "application/pdf"
+      });
+      renderThumbs();
     };
     reader.readAsDataURL(file);
-  } else {
-    // 이미지 처리 (기존)
-    imageMime = file.type;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      imageBase64 = ev.target.result.split(",")[1];
-      dropZone.classList.add("has-img");
-      dropZone.innerHTML = `<img src="${ev.target.result}" alt="재무제표 미리보기" />`;
-      const btn = document.getElementById("analyzeBtn");
-      btn.disabled = false;
-      btn.textContent = "분석하기";
-      document.getElementById("results").classList.add("hidden");
-    };
-    reader.readAsDataURL(file);
+  });
+}
+
+function removeImage(i) {
+  uploadedImages.splice(i, 1);
+  renderThumbs();
+}
+
+function renderThumbs() {
+  const wrap = document.getElementById("imgThumbs");
+  const btn  = document.getElementById("analyzeBtn");
+
+  if (uploadedImages.length === 0) {
+    wrap.classList.add("hidden");
+    wrap.innerHTML = "";
+    dropZone.classList.remove("has-img");
+    dropZone.innerHTML = `
+      <div class="dz-icon">📄</div>
+      <div class="dz-text">이미지를 클릭하거나 드래그해서 업로드</div>
+      <div class="dz-hint">JPG, PNG, PDF — 최대 ${MAX_IMAGES}장까지 첨부 가능</div>`;
+    btn.disabled = true;
+    btn.textContent = "이미지를 먼저 업로드하세요";
+    return;
   }
+
+  dropZone.classList.add("has-img");
+  dropZone.innerHTML = `
+    <div style="padding:1.5rem;text-align:center;">
+      <div style="font-size:32px;margin-bottom:6px;">📎</div>
+      <div style="font-size:13px;font-weight:500;color:var(--text);">${uploadedImages.length}장 첨부됨 (최대 ${MAX_IMAGES}장)</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px;">클릭해서 더 추가하기</div>
+    </div>`;
+
+  wrap.classList.remove("hidden");
+  wrap.innerHTML = uploadedImages.map((img, i) => `
+    <div class="img-thumb">
+      ${img.isPdf
+        ? `<div class="pdf-badge">📑<span>${img.name}</span></div>`
+        : `<img src="data:${img.mime};base64,${img.data}" alt="첨부 이미지 ${i+1}" />`}
+      <button class="thumb-remove" onclick="event.stopPropagation();removeImage(${i})">✕</button>
+    </div>
+  `).join("");
+
+  btn.disabled = false;
+  btn.textContent = "분석하기";
+  document.getElementById("results").classList.add("hidden");
 }
 
 // ── 분석 ──────────────────────────────────────────────────────
 async function doAnalyze() {
   if (!token) { showPage("login"); return; }
-  if (!imageBase64) return;
+  if (uploadedImages.length === 0) return;
   if (userCredits < 10) { openPaymentModal(); return; }
 
   const btn = document.getElementById("analyzeBtn");
@@ -829,7 +870,9 @@ async function doAnalyze() {
   document.getElementById("results").classList.add("hidden");
 
   try {
-    const d = await api("POST", "/analyze", { image_base64: imageBase64, image_mime: imageMime });
+    const d = await api("POST", "/analyze", {
+      images: uploadedImages.map(img => ({ data: img.data, mime: img.mime }))
+    });
     userCredits = d.remaining_credits;
     localStorage.setItem("fa_credits", userCredits);
     updateCreditBadges();
