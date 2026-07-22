@@ -709,10 +709,13 @@ function showPage(name) {
 }
 
 function toast(msg) {
+  const wrap = document.getElementById("toastWrap");
+  // 토스트가 계속 쌓이지 않도록 오래된 것부터 정리 (최대 2개 유지)
+  while (wrap.children.length >= 2) wrap.removeChild(wrap.firstChild);
   const el = document.createElement("div");
   el.className = "toast";
   el.textContent = msg;
-  document.getElementById("toastWrap").appendChild(el);
+  wrap.appendChild(el);
   setTimeout(() => el.remove(), 3000);
 }
 
@@ -1765,15 +1768,15 @@ function downloadResult() {
 </body>
 </html>`;
 
-  const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
-  const url  = URL.createObjectURL(blob);
-
   if (isMobileDevice()) {
-    // 모바일: 새 탭은 팝업으로 차단될 수 있어, 현재 화면에서 바로 리포트로 이동 (팝업 차단 영향 없음)
+    // 모바일: blob: 링크 이동이 사파리에서 막히는 경우가 있어 data: URI로 우회
     toast("리포트 화면으로 이동합니다. 공유 버튼(⬆️) → 프린트를 누르면 PDF로 저장할 수 있어요.");
-    setTimeout(() => { window.location.href = url; }, 900);
+    const dataUrl = "data:text/html;charset=utf-8," + encodeURIComponent(htmlContent);
+    setTimeout(() => { window.location.href = dataUrl; }, 500);
     return;
   } else {
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
     const win = window.open(url, "_blank");
     if (win) {
       setTimeout(() => { try { win.print(); } catch(e) {} }, 700);
@@ -1783,8 +1786,8 @@ function downloadResult() {
       a.download = `${filenameBase}.html`;
       a.click();
     }
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
   }
-  setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
 
 function isMobileDevice() {
