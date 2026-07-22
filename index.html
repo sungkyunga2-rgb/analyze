@@ -1625,10 +1625,24 @@ function downloadResult() {
     body { background:#fff; }
     @page { margin: 10mm; }
     .cover { page-break-after:always; }
+    .save-pdf-bar { display:none; }
+  }
+  .save-pdf-bar {
+    position: sticky; top: 0; z-index: 999;
+    background: #0d3b7c; padding: 12px 16px; text-align: center;
+  }
+  .save-pdf-bar button {
+    background: #fff; color: #0d3b7c; border: none; border-radius: 10px;
+    padding: 12px 24px; font-size: 15px; font-weight: 700; cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif; width: 100%; max-width: 420px;
   }
 </style>
 </head>
 <body>
+
+<div class="save-pdf-bar">
+  <button onclick="window.print()">📥 PDF로 저장하기 (탭하면 인쇄창이 열려요)</button>
+</div>
 
 <!-- 0. 표지 -->
 <div class="cover">
@@ -1771,7 +1785,7 @@ function downloadResult() {
   if (isMobileDevice()) {
     // 모바일: blob/data URI로의 이동이 사파리에서 차단되는 경우가 있어,
     // 아예 이동하지 않고 현재 문서 자체를 리포트 내용으로 바로 교체
-    toast("리포트 화면으로 전환합니다. 공유 버튼(⬆️) → 프린트를 누르면 PDF로 저장할 수 있어요.");
+    toast("리포트 화면으로 전환합니다. 상단의 'PDF로 저장하기' 버튼을 탭해주세요.");
     setTimeout(() => {
       document.open();
       document.write(htmlContent);
