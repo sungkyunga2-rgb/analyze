@@ -275,14 +275,14 @@
       <div class="card-title">재무제표 이미지</div>
       <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="dz-icon">📄</div>
-        <div class="dz-text">이미지를 클릭하거나 드래그해서 업로드</div>
+        <div class="dz-text">파일을 클릭하거나 드래그해서 업로드</div>
         <div class="dz-hint">JPG, PNG, PDF — 최대 10장까지 첨부 가능</div>
-        <div class="dz-hint" style="margin-top:2px;">⚠️ 글씨가 작거나 화질이 낮으면 정확하게 인식되지 않을 수 있어요. 되도록 선명한 이미지를 첨부해주세요.</div>
+        <div class="dz-hint" style="margin-top:2px;">⚠️ 글씨가 작거나 화질이 낮으면 정확하게 인식되지 않을 수 있어요. 되도록 PDF파일이나 선명한 이미지를 첨부해주세요.</div>
       </div>
       <div id="imgThumbs" class="img-thumbs hidden"></div>
       <input type="file" id="fileInput" accept="image/*,application/pdf" multiple style="display:none" />
       <button class="btn btn-primary btn-full mt1" id="analyzeBtn" disabled onclick="doAnalyze()">
-        이미지를 먼저 업로드하세요
+        파일을 여기 업로드해주세요
       </button>
     </div>
 
@@ -373,7 +373,7 @@
       <button class="btn btn-primary btn-full mt1" onclick="downloadResult()" style="display:flex;align-items:center;justify-content:center;gap:8px;">
         📥 분석 결과 다운로드 (PDF)
       </button>
-      <p class="text-center" style="margin-top:8px;">
+      <p class="text-center" style="margin-top:8px;margin-bottom:24px;">
         <a href="#" onclick="event.preventDefault();window.open('print-guide.jpg','_blank')" style="font-size:12px;color:var(--text2);text-decoration:underline;">진단결과와 인쇄화면이 다를 경우</a>
       </p>
     </div>
@@ -848,11 +848,11 @@ function renderThumbs() {
     dropZone.classList.remove("has-img");
     dropZone.innerHTML = `
       <div class="dz-icon">📄</div>
-      <div class="dz-text">이미지를 클릭하거나 드래그해서 업로드</div>
+      <div class="dz-text">파일을 클릭하거나 드래그해서 업로드</div>
       <div class="dz-hint">JPG, PNG, PDF — 최대 ${MAX_IMAGES}장까지 첨부 가능</div>
-      <div class="dz-hint" style="margin-top:2px;">⚠️ 글씨가 작거나 화질이 낮으면 정확하게 인식되지 않을 수 있어요. 되도록 선명한 이미지를 첨부해주세요.</div>`;
+      <div class="dz-hint" style="margin-top:2px;">⚠️ 글씨가 작거나 화질이 낮으면 정확하게 인식되지 않을 수 있어요. 되도록 PDF파일이나 선명한 이미지를 첨부해주세요.</div>`;
     btn.disabled = true;
-    btn.textContent = "이미지를 먼저 업로드하세요";
+    btn.textContent = "파일을 여기 업로드해주세요";
     return;
   }
 
