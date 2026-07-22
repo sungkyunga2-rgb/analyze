@@ -329,46 +329,56 @@ operating_income(영업이익), interest_expense(이자비용), net_income(당�
 
     # 폴백 모델 순서 (정확도 우선 1차 → 속도우선 폴백 → 미리보기)
     GEMINI_MODELS = [
-        "gemini-2.5-flash",                      # 1차: 표준 Flash — 정확도 우선
-        "gemini-2.5-flash-lite-preview-06-17",  # 2차: 1차 과부하/오류 시 가볍고 빠른 폴백
-        "gemini-2.5-flash-preview-05-20",        # 3차: 미리보기 버전
+        "gemini-2.5-flash",        # 1차: 표준 Flash — 정확도 우선
+        "gemini-2.5-flash-lite",   # 2차: 1차 과부하/오류 시 가볍고 빠른 폴백
+        "gemini-2.0-flash",        # 3차: 이전 세대 안정 모델 (2.5 계열 전체 장애 시 대비)
+        "gemini-1.5-flash",        # 4차: 가장 오래되고 안정적인 최종 폴백
     ]
 
     async def call_gemini(client: httpx.AsyncClient, prompt_text: str):
         """이미지 + 프롬프트로 Gemini를 호출하고, 모델 폴백을 거쳐 파싱된 JSON(dict)을 반환. 실패 시 (None, 에러메시지)."""
+        import asyncio
         last_err = None
         for model in GEMINI_MODELS:
-            try:
-                resp = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}",
-                    headers={"Content-Type": "application/json"},
-                    json={
-                        "contents": [{
-                            "parts": [
-                                *image_parts,
-                                {"text": prompt_text}
-                            ]
-                        }],
-                        "generationConfig": {"temperature": 0, "maxOutputTokens": 8000}
-                    }
-                )
-                if resp.status_code in (503, 429) or resp.status_code != 200:
-                    last_err = resp.text
-                    continue
+            # 일시적 과부하(503/429)에 대비해 같은 모델로 최대 2회 시도 (1회 재시도, 0.8초 대기)
+            for attempt in range(2):
                 try:
-                    candidate_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    candidate_clean = re.sub(r"```json|```", "", candidate_text).strip()
-                    start = candidate_clean.find("{")
-                    end = candidate_clean.rfind("}")
-                    if start == -1 or end == -1:
-                        raise ValueError("JSON 객체를 찾을 수 없음")
-                    return json.loads(candidate_clean[start:end + 1]), None
-                except Exception as parse_err:
-                    last_err = f"JSON 파싱 실패: {parse_err}"
-                    continue
-            except Exception as e:
-                last_err = str(e)
-                continue
+                    resp = await client.post(
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}",
+                        headers={"Content-Type": "application/json"},
+                        json={
+                            "contents": [{
+                                "parts": [
+                                    *image_parts,
+                                    {"text": prompt_text}
+                                ]
+                            }],
+                            "generationConfig": {"temperature": 0, "maxOutputTokens": 8000}
+                        }
+                    )
+                    if resp.status_code in (503, 429):
+                        last_err = resp.text
+                        if attempt == 0:
+                            await asyncio.sleep(0.8)
+                            continue  # 같은 모델로 한 번 더 시도
+                        break  # 재시도까지 실패 → 다음 모델로
+                    if resp.status_code != 200:
+                        last_err = resp.text
+                        break  # 다음 모델로
+                    try:
+                        candidate_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                        candidate_clean = re.sub(r"```json|```", "", candidate_text).strip()
+                        start = candidate_clean.find("{")
+                        end = candidate_clean.rfind("}")
+                        if start == -1 or end == -1:
+                            raise ValueError("JSON 객체를 찾을 수 없음")
+                        return json.loads(candidate_clean[start:end + 1]), None
+                    except Exception as parse_err:
+                        last_err = f"JSON 파싱 실패: {parse_err}"
+                        break  # 다음 모델로
+                except Exception as e:
+                    last_err = str(e)
+                    break  # 다음 모델로
         return None, last_err
 
     def find_mismatches(d: dict) -> list[str]:
@@ -398,7 +408,7 @@ operating_income(영업이익), interest_expense(이자비용), net_income(당�
                 )
         return issues
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=90) as client:
         data, last_error = await call_gemini(client, prompt)
 
         if data is not None:
