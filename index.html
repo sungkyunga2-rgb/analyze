@@ -688,6 +688,11 @@ async function doRegister() {
     errEl.style.display = "block";
     return;
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errEl.textContent = "올바른 이메일 형식으로 입력해주세요. (예: name@company.com)";
+    errEl.style.display = "block";
+    return;
+  }
   try {
     const d = await api("POST", "/auth/register", {
       email, password: pw,
@@ -1737,6 +1742,10 @@ function closePaymentModal() {
 
 async function executePayment(pkgId, fromModal) {
   if (!token) { showPage("login"); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail || "")) {
+    toast("계정 이메일 형식이 올바르지 않아 결제를 진행할 수 없습니다. '내 정보'에서 확인하거나, 정상적인 이메일로 다시 가입해주세요.");
+    return;
+  }
 
   // PortOne SDK가 아직 로드 안 됐으면 대기
   if (!window.PortOne) {

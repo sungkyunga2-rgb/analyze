@@ -111,6 +111,9 @@ def list_packages():
 # 회원가입
 @app.post("/auth/register")
 def register(body: UserCreate, db: Session = Depends(get_db)):
+    import re
+    if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", body.email):
+        raise HTTPException(status_code=400, detail="올바른 이메일 형식이 아닙니다.")
     existing = db.query(models.User).filter(models.User.email == body.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="이미 사용 중인 이메일입니다.")
