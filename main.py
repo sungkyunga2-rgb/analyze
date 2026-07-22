@@ -51,6 +51,8 @@ PORTONE_SECRET_KEY = os.getenv("PORTONE_SECRET_KEY", "")   # 포트원 콘솔 > 
 PORTONE_API_BASE   = "https://api.portone.io"
 GEMINI_API_KEY     = os.getenv("GEMINI_API_KEY", "")       # Google AI Studio > API 키
 ADMIN_PASSWORD     = os.getenv("ADMIN_PASSWORD", "")       # 관리자 페이지 접근 비밀번호 (Render 환경변수에 설정)
+GMAIL_ADDRESS      = "cngpartners123@gmail.com"             # 임시비밀번호 발송용 발신 계정
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")   # 위 계정의 앱 비밀번호 (Render 환경변수에 설정)
 COST_PER_ANALYSIS = 10  # 분석 1회당 차감 크레딧
 
 CREDIT_PACKAGES = {
@@ -525,3 +527,78 @@ def admin_set_credits(body: AdminSetCreditsBody, _: bool = Depends(check_admin),
     user.credits = max(0, body.remaining_count) * COST_PER_ANALYSIS
     db.commit()
     return {"email": user.email, "credits": user.credits, "remaining_count": user.credits // COST_PER_ANALYSIS}
+
+
+# ══════════════════════════════════════════════════════════════
+# 아이디(이메일) 찾기 / 비밀번호 찾기 (임시비밀번호 이메일 발송)
+# ══════════════════════════════════════════════════════════════
+def mask_email(email: str) -> str:
+    """이메일 앞부분을 일부만 남기고 마스킹 (예: honggildong@gmail.com -> hon********@gmail.com)"""
+    try:
+        local, domain = email.split("@", 1)
+        if len(local) <= 2:
+            masked = local[0] + "*" * (len(local) - 1)
+        else:
+            visible = max(2, len(local) // 3)
+            masked = local[:visible] + "*" * (len(local) - visible)
+        return f"{masked}@{domain}"
+    except Exception:
+        return "****"
+
+def send_temp_password_email(to_email: str, temp_password: str):
+    import smtplib
+    from email.mime.text import MIMEText
+    if not GMAIL_APP_PASSWORD:
+        raise HTTPException(status_code=500, detail="이메일 발송 설정(GMAIL_APP_PASSWORD)이 되어 있지 않습니다.")
+    body = f"""안녕하세요, 씨앤지파트너스 FinAnalyzer입니다.
+
+요청하신 임시비밀번호가 발급되었습니다.
+
+임시비밀번호: {temp_password}
+
+로그인 후 [내 정보] 메뉴에서 새 비밀번호로 변경해주세요.
+본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.
+
+- C&G Partners (씨앤지파트너스)"""
+    msg = MIMEText(body)
+    msg["Subject"] = "[FinAnalyzer] 임시비밀번호 안내"
+    msg["From"] = GMAIL_ADDRESS
+    msg["To"] = to_email
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+            server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_ADDRESS, [to_email], msg.as_string())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"이메일 발송에 실패했습니다: {e}")
+
+class FindIdBody(BaseModel):
+    phone: str
+
+@app.post("/auth/find-id")
+def find_id(body: FindIdBody, db: Session = Depends(get_db)):
+    phone = body.phone.strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="휴대폰번호를 입력해주세요.")
+    user = db.query(models.User).filter(models.User.phone == phone).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="해당 휴대폰번호로 가입된 계정을 찾을 수 없습니다.")
+    return {"masked_email": mask_email(user.email)}
+
+class ResetPasswordBody(BaseModel):
+    email: str
+
+@app.post("/auth/reset-password")
+def reset_password(body: ResetPasswordBody, db: Session = Depends(get_db)):
+    import hashlib, secrets, string
+    email = body.email.strip().lower()
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="해당 이메일로 가입된 계정을 찾을 수 없습니다.")
+
+    alphabet = string.ascii_letters + string.digits
+    temp_password = "".join(secrets.choice(alphabet) for _ in range(10))
+    user.password_hash = hashlib.sha256(temp_password.encode()).hexdigest()
+    db.commit()
+
+    send_temp_password_email(user.email, temp_password)
+    return {"message": "임시비밀번호가 이메일로 발송되었습니다."}

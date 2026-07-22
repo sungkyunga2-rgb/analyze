@@ -319,8 +319,57 @@
       </div>
       <div id="login-error" class="error-msg"></div>
       <button class="btn btn-primary btn-full mt1" onclick="doLogin()">로그인</button>
+      <div class="text-center" style="margin-top:12px;font-size:12px;color:var(--text3);">
+        <a href="#" onclick="showPage('findId')" style="color:var(--text2);">아이디 찾기</a>
+        <span style="margin:0 6px;">|</span>
+        <a href="#" onclick="showPage('findPw')" style="color:var(--text2);">비밀번호 찾기</a>
+      </div>
     </div>
     <p class="text-center" style="font-size:13px;color:var(--text2);">계정이 없으신가요? <a href="#" onclick="showPage('register')" style="color:var(--accent);">가입하기</a></p>
+  </div>
+</div>
+
+<!-- ───────────────────────── 아이디 찾기 ───────────────────────── -->
+<div id="page-findId" class="page">
+  <header>
+    <a class="logo" href="#" onclick="showPage('landing')">Fin<span>Analyzer</span></a>
+  </header>
+  <div class="main" style="max-width:400px;">
+    <h2 style="font-size:22px;font-weight:700;margin-bottom:1.5rem;letter-spacing:-0.02em;">아이디 찾기</h2>
+    <div class="card">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:1rem;">가입 시 등록한 휴대폰번호를 입력하시면, 이메일(아이디) 일부를 확인하실 수 있어요.</p>
+      <div class="field">
+        <label>휴대폰번호</label>
+        <input type="tel" id="findid-phone" placeholder="예: 010-1234-5678" onkeydown="if(event.key==='Enter')doFindId()" />
+      </div>
+      <div id="findid-error" class="error-msg"></div>
+      <div id="findid-result" class="hidden" style="background:var(--accent-bg);border-radius:10px;padding:14px;margin-bottom:1rem;text-align:center;">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">회원님의 이메일(아이디)</div>
+        <div id="findid-masked" style="font-size:17px;font-weight:700;color:var(--accent);"></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="doFindId()">조회하기</button>
+    </div>
+    <p class="text-center" style="font-size:13px;color:var(--text2);"><a href="#" onclick="showPage('login')" style="color:var(--accent);">← 로그인으로 돌아가기</a></p>
+  </div>
+</div>
+
+<!-- ───────────────────────── 비밀번호 찾기 ───────────────────────── -->
+<div id="page-findPw" class="page">
+  <header>
+    <a class="logo" href="#" onclick="showPage('landing')">Fin<span>Analyzer</span></a>
+  </header>
+  <div class="main" style="max-width:400px;">
+    <h2 style="font-size:22px;font-weight:700;margin-bottom:1.5rem;letter-spacing:-0.02em;">비밀번호 찾기</h2>
+    <div class="card">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:1rem;">가입하신 이메일을 입력하시면, 해당 주소로 임시비밀번호를 보내드려요. 로그인 후 [내 정보]에서 새 비밀번호로 변경해주세요.</p>
+      <div class="field">
+        <label>이메일</label>
+        <input type="email" id="findpw-email" placeholder="name@company.com" onkeydown="if(event.key==='Enter')doFindPw()" />
+      </div>
+      <div id="findpw-error" class="error-msg"></div>
+      <button class="btn btn-primary btn-full" id="findpw-btn" onclick="doFindPw()">임시비밀번호 받기</button>
+    </div>
+    <p class="text-center" style="font-size:13px;color:var(--text2);"><a href="#" onclick="showPage('login')" style="color:var(--accent);">← 로그인으로 돌아가기</a></p>
   </div>
 </div>
 
@@ -807,6 +856,52 @@ async function doLogin() {
     showPage("dashboard");
     toast("로그인되었습니다.");
   } catch (e) { errEl.textContent = e.message; errEl.style.display = "block"; }
+}
+
+async function doFindId() {
+  const phone = document.getElementById("findid-phone").value.trim();
+  const errEl = document.getElementById("findid-error");
+  const resultEl = document.getElementById("findid-result");
+  errEl.style.display = "none";
+  resultEl.classList.add("hidden");
+  if (!phone) {
+    errEl.textContent = "휴대폰번호를 입력해주세요.";
+    errEl.style.display = "block";
+    return;
+  }
+  try {
+    const d = await api("POST", "/auth/find-id", { phone });
+    document.getElementById("findid-masked").textContent = d.masked_email;
+    resultEl.classList.remove("hidden");
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = "block";
+  }
+}
+
+async function doFindPw() {
+  const email = document.getElementById("findpw-email").value.trim();
+  const errEl = document.getElementById("findpw-error");
+  const btn = document.getElementById("findpw-btn");
+  errEl.style.display = "none";
+  if (!email) {
+    errEl.textContent = "이메일을 입력해주세요.";
+    errEl.style.display = "block";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "발송 중...";
+  try {
+    await api("POST", "/auth/reset-password", { email });
+    toast("임시비밀번호를 이메일로 보내드렸어요. 메일함을 확인해주세요.");
+    showPage("login");
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "임시비밀번호 받기";
+  }
 }
 
 function doLogout() {
@@ -1642,8 +1737,10 @@ function downloadResult() {
 <body>
 
 <div class="save-pdf-bar">
-  <button onclick="window.print()">🖨️ PDF로 저장하기 (인쇄창 열기)</button>
-  <button onclick="saveAsImage()" style="margin-top:8px;background:rgba(255,255,255,0.15);color:#fff;border:1.5px solid rgba(255,255,255,0.5);">🖼️ 이미지로 저장하기 (모바일 추천)</button>
+  ${isMobileDevice()
+    ? `<button onclick="saveAsImage()">🖼️ 이미지로 저장하기</button>
+       <div style="color:rgba(255,255,255,0.65);font-size:11px;margin-top:6px;">(PDF파일은 PC에서만 저장 가능합니다)</div>`
+    : `<button onclick="window.print()">🖨️ PDF로 저장하기 (인쇄창 열기)</button>`}
 </div>
 
 <div id="reportCaptureArea">
