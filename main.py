@@ -121,7 +121,7 @@ def register(body: UserCreate, db: Session = Depends(get_db)):
     pw_hash = hashlib.sha256(body.password.encode()).hexdigest()
     token = str(uuid.uuid4())
     user = models.User(
-        email=body.email, password_hash=pw_hash, token=token, credits=1000,
+        email=body.email, password_hash=pw_hash, token=token, credits=0,
         company_name=body.company_name, rep_name=body.rep_name, phone=body.phone,
         business_number=body.business_number
     )
