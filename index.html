@@ -1769,7 +1769,15 @@ function downloadResult() {
   const url  = URL.createObjectURL(blob);
 
   if (isMobileDevice()) {
-    generateMobilePdf(htmlContent, filenameBase);
+    // 모바일: 실제 브라우저 탭으로 열어서(캔버스로 흉내내지 않고) 브라우저 자체 렌더링을 그대로 사용
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast("새 탭에서 리포트가 열려요. 공유 버튼(⬆️) → 프린트를 누르면 PDF로 저장할 수 있어요.");
   } else {
     const win = window.open(url, "_blank");
     if (win) {
@@ -1780,67 +1788,12 @@ function downloadResult() {
       a.download = `${filenameBase}.html`;
       a.click();
     }
-    setTimeout(() => URL.revokeObjectURL(url), 15000);
   }
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
 
 function isMobileDevice() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-}
-
-function loadExternalScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("스크립트 로드 실패"));
-    document.head.appendChild(s);
-  });
-}
-
-// 모바일: 정적 리포트를 숨겨진 iframe에 렌더링한 뒤 실제 PDF 파일로 변환해서 다운로드
-async function generateMobilePdf(htmlContent, filenameBase) {
-  toast("PDF 생성 중이에요. 잠시만 기다려주세요...");
-  let iframe;
-  try {
-    if (!window.html2pdf) {
-      await loadExternalScript("https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js");
-    }
-    iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.left = "-99999px";
-    iframe.style.top = "0";
-    iframe.style.width = "900px";
-    iframe.style.height = "1400px";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-
-    await new Promise((resolve) => {
-      iframe.onload = resolve;
-      iframe.srcdoc = htmlContent;
-    });
-
-    // 웹폰트 로딩 대기 (실패해도 진행)
-    try { await iframe.contentDocument.fonts.ready; } catch(e) {}
-    await new Promise(r => setTimeout(r, 400));
-
-    const target = iframe.contentDocument.body;
-    await window.html2pdf().set({
-      margin: 0,
-      filename: `${filenameBase}.pdf`,
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, windowWidth: 900 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] }
-    }).from(target).save();
-
-    toast("PDF 파일이 다운로드됐어요.");
-  } catch (e) {
-    toast("PDF 생성에 실패했어요: " + e.message);
-  } finally {
-    if (iframe && iframe.parentNode) document.body.removeChild(iframe);
-  }
 }
 
 // ── 결제 (포트원 V2) ───────────────────────────────────────────
