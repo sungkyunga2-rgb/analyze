@@ -474,6 +474,25 @@ def admin_login(body: AdminLoginBody):
         raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
     return {"ok": True}
 
+@app.get("/admin/users")
+def admin_list_users(_: bool = Depends(check_admin), db: Session = Depends(get_db)):
+    users = db.query(models.User).order_by(models.User.created_at.desc()).all()
+    return {
+        "count": len(users),
+        "users": [
+            {
+                "email": u.email,
+                "company_name": u.company_name,
+                "rep_name": u.rep_name,
+                "phone": u.phone,
+                "credits": u.credits,
+                "remaining_count": u.credits // COST_PER_ANALYSIS,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            }
+            for u in users
+        ],
+    }
+
 @app.get("/admin/user")
 def admin_get_user(email: str, _: bool = Depends(check_admin), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == email).first()

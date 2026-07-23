@@ -97,7 +97,11 @@
       </div>
     </div>
     <div class="error-msg" id="search-error"></div>
+    <button class="btn-ghost btn-full" onclick="toggleUserList()" id="listToggleBtn" style="margin-top:12px;">📋 전체 가입자 목록 보기</button>
   </div>
+
+  <!-- 전체 회원 목록 -->
+  <div class="card hidden" id="userListCard"></div>
 
   <!-- 결과 -->
   <div class="card hidden" id="resultCard"></div>
@@ -163,6 +167,7 @@ async function searchUser() {
   try {
     const d = await api("GET", `/admin/user?email=${encodeURIComponent(email)}`);
     currentEmail = d.email;
+    document.getElementById("userListCard").classList.add("hidden");
     renderResult(d);
   } catch (e) {
     document.getElementById("resultCard").classList.add("hidden");
@@ -175,6 +180,57 @@ async function searchUser() {
       document.getElementById("searchCard").classList.add("hidden");
     }
   }
+}
+
+async function toggleUserList() {
+  const card = document.getElementById("userListCard");
+  const btn = document.getElementById("listToggleBtn");
+  if (!card.classList.contains("hidden")) {
+    card.classList.add("hidden");
+    btn.textContent = "📋 전체 가입자 목록 보기";
+    return;
+  }
+  document.getElementById("resultCard").classList.add("hidden");
+  btn.textContent = "불러오는 중...";
+  try {
+    const d = await api("GET", "/admin/users");
+    renderUserList(d);
+    card.classList.remove("hidden");
+    btn.textContent = "📋 목록 닫기";
+  } catch (e) {
+    toast_admin_error(e.message);
+    btn.textContent = "📋 전체 가입자 목록 보기";
+  }
+}
+
+function toast_admin_error(msg) {
+  const errEl = document.getElementById("search-error");
+  errEl.textContent = msg;
+  errEl.style.display = "block";
+}
+
+function renderUserList(d) {
+  const card = document.getElementById("userListCard");
+  const rows = d.users.map(u => `
+    <tr style="cursor:pointer;" onclick="jumpToUser('${u.email.replace(/'/g, "\\'")}')">
+      <td>${u.company_name || "-"}</td>
+      <td>${u.email}</td>
+      <td>${u.rep_name || "-"}</td>
+      <td>${u.phone || "-"}</td>
+      <td style="text-align:right;font-weight:700;">${u.remaining_count}건</td>
+      <td>${u.created_at ? u.created_at.slice(0,10) : "-"}</td>
+    </tr>`).join("");
+  card.innerHTML = `
+    <div class="section-title">전체 가입자 (${d.count}명)</div>
+    <table>
+      <thead><tr><th>회사명</th><th>이메일</th><th>대표자</th><th>휴대폰</th><th>잔여횟수</th><th>가입일</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6" style="text-align:center;color:#9aa7b8;">가입자가 없습니다.</td></tr>`}</tbody>
+    </table>`;
+}
+
+function jumpToUser(email) {
+  document.getElementById("search-email").value = email;
+  searchUser();
 }
 
 function renderResult(d) {
